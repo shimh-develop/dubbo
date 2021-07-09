@@ -99,6 +99,7 @@ final public class MockInvoker<T> implements Invoker<T> {
         if (invocation instanceof RpcInvocation) {
             ((RpcInvocation) invocation).setInvoker(this);
         }
+        // 获取 mock 配置值
         String mock = null;
         if (getUrl().hasMethodParameter(invocation.getMethodName())) {
             mock = getUrl().getParameter(invocation.getMethodName() + "." + MOCK_KEY);
@@ -131,6 +132,8 @@ final public class MockInvoker<T> implements Invoker<T> {
             }
         } else { //impl mock
             try {
+                // 无 mock 逻辑，直接调用其他 Invoker 对象的 invoke 方法，
+                // 比如 FailoverClusterInvoker
                 Invoker<T> invoker = getInvoker(mock);
                 return invoker.invoke(invocation);
             } catch (Throwable t) {

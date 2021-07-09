@@ -52,13 +52,26 @@ public class DubboConfigConfigurationRegistrar implements ImportBeanDefinitionRe
         boolean multiple = attributes.getBoolean("multiple");
 
         // Single Config Bindings
+        //s .properties格式的配置 创建对应的Config类 注入Spring
         registerBeans(registry, DubboConfigConfiguration.Single.class);
 
         if (multiple) { // Since 2.6.6 https://github.com/apache/dubbo/issues/3193
+            //s 多配置项示例 https://dubbo.apache.org/zh/docs/v2.7/user/configuration/configuration-load-process/
+            /**
+             * dubbo.registries.unit1.address=zookeeper://127.0.0.1:2181
+             * dubbo.registries.unit2.address=zookeeper://127.0.0.1:2182
+             *
+             * dubbo.protocols.dubbo.name=dubbo
+             * dubbo.protocols.dubbo.port=20880
+             * dubbo.protocols.hessian.name=hessian
+             * dubbo.protocols.hessian.port=8089
+             *
+             */
             registerBeans(registry, DubboConfigConfiguration.Multiple.class);
         }
 
         // Since 2.7.6
+        //s 注册
         registerCommonBeans(registry);
     }
 

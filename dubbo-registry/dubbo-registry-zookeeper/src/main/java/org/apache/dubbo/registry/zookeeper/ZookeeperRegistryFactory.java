@@ -31,6 +31,8 @@ public class ZookeeperRegistryFactory extends AbstractRegistryFactory {
 
     /**
      * Invisible injection of zookeeper client via IOC/SPI
+     * zookeeperTransporter 由 SPI 在运行时注入，类型为 ZookeeperTransporter$Adaptive
+     *
      * @param zookeeperTransporter
      */
     public void setZookeeperTransporter(ZookeeperTransporter zookeeperTransporter) {
@@ -39,6 +41,7 @@ public class ZookeeperRegistryFactory extends AbstractRegistryFactory {
 
     @Override
     public Registry createRegistry(URL url) {
+        //s 创建 Zookeeper 客户端
         return new ZookeeperRegistry(url, zookeeperTransporter);
     }
 

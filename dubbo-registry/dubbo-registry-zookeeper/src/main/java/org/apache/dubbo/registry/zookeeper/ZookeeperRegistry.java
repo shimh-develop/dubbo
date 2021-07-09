@@ -78,11 +78,13 @@ public class ZookeeperRegistry extends FailbackRegistry {
         if (url.isAnyHost()) {
             throw new IllegalStateException("registry address == null");
         }
+        //s 获取组名，默认为 dubbo
         String group = url.getParameter(GROUP_KEY, DEFAULT_ROOT);
         if (!group.startsWith(PATH_SEPARATOR)) {
             group = PATH_SEPARATOR + group;
         }
         this.root = group;
+        //s 创建 Zookeeper 客户端，默认为 CuratorZookeeperTransporter
         zkClient = zookeeperTransporter.connect(url);
         zkClient.addStateListener((state) -> {
             if (state == StateListener.RECONNECTED) {
@@ -126,6 +128,12 @@ public class ZookeeperRegistry extends FailbackRegistry {
     @Override
     public void doRegister(URL url) {
         try {
+            //s 服务是否动态注册，如果设为false，注册后将显示为disable状态，需人工启用，并且服务提供者停止时，也不会自动取消注册，需人工禁用
+            //s <dubbo:registry dynamic="">
+            //s 通过 Zookeeper 客户端创建节点，节点路径由 toUrlPath 方法生成，路径格式如下:
+            //s   /${group}/${serviceInterface}/providers/${url}
+            //s 比如
+            //s   /dubbo/org.apache.dubbo.DemoService/providers/dubbo%3A%2F%2F127.0.0.1......
             zkClient.create(toUrlPath(url), url.getParameter(DYNAMIC_KEY, true));
         } catch (Throwable e) {
             throw new RpcException("Failed to register " + url + " to zookeeper " + getUrl() + ", cause: " + e.getMessage(), e);

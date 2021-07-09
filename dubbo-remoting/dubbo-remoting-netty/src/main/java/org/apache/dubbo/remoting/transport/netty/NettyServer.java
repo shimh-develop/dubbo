@@ -68,8 +68,10 @@ public class NettyServer extends AbstractServer implements RemotingServer {
     @Override
     protected void doOpen() throws Throwable {
         NettyHelper.setNettyLoggerFactory();
+        //s 创建 boss 和 worker 线程池
         ExecutorService boss = Executors.newCachedThreadPool(new NamedThreadFactory("NettyServerBoss", true));
         ExecutorService worker = Executors.newCachedThreadPool(new NamedThreadFactory("NettyServerWorker", true));
+        //s io线程池大小(固定大小) cpu个数+1
         ChannelFactory channelFactory = new NioServerSocketChannelFactory(boss, worker, getUrl().getPositiveParameter(IO_THREADS_KEY, Constants.DEFAULT_IO_THREADS));
         bootstrap = new ServerBootstrap(channelFactory);
 
@@ -96,6 +98,7 @@ public class NettyServer extends AbstractServer implements RemotingServer {
             }
         });
         // bind
+        //s 绑定到指定的 ip 和端口上
         channel = bootstrap.bind(getBindAddress());
     }
 

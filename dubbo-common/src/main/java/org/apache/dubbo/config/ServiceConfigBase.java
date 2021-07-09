@@ -209,6 +209,7 @@ public abstract class ServiceConfigBase<T> extends AbstractServiceConfig {
     }
 
     public void completeCompoundConfigs() {
+        //s 从全局配置 ProviderConfig 获取
         super.completeCompoundConfigs(provider);
         if (provider != null) {
             if (protocols == null) {

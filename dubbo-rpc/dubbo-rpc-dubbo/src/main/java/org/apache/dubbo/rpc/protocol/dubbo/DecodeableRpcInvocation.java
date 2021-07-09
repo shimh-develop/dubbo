@@ -107,16 +107,16 @@ public class DecodeableRpcInvocation extends RpcInvocation implements Codec, Dec
         ObjectInput in = CodecSupport.getSerialization(channel.getUrl(), serializationType)
                 .deserialize(channel.getUrl(), input);
         this.put(SERIALIZATION_ID_KEY, serializationType);
-
+        // 通过反序列化得到 dubbo version，并保存到 attachments 变量中
         String dubboVersion = in.readUTF();
         request.setVersion(dubboVersion);
         setAttachment(DUBBO_VERSION_KEY, dubboVersion);
-
+        // 通过反序列化得到 path，version，并保存到 attachments 变量中
         String path = in.readUTF();
         setAttachment(PATH_KEY, path);
         String version = in.readUTF();
         setAttachment(VERSION_KEY, version);
-
+        // 通过反序列化得到调用方法名
         setMethodName(in.readUTF());
 
         String desc = in.readUTF();
@@ -160,14 +160,16 @@ public class DecodeableRpcInvocation extends RpcInvocation implements Codec, Dec
                     }
                 }
             }
+            // 设置参数类型数组
             setParameterTypes(pts);
-
+            // 通过反序列化得到原 attachment 的内容
             Map<String, Object> map = in.readAttachments();
             if (map != null && map.size() > 0) {
                 Map<String, Object> attachment = getObjectAttachments();
                 if (attachment == null) {
                     attachment = new HashMap<>();
                 }
+                // 将 map 与当前对象中的 attachment 集合进行融合
                 attachment.putAll(map);
                 setObjectAttachments(attachment);
             }
@@ -176,7 +178,7 @@ public class DecodeableRpcInvocation extends RpcInvocation implements Codec, Dec
             for (int i = 0; i < args.length; i++) {
                 args[i] = decodeInvocationArgument(channel, this, pts, i, args[i]);
             }
-
+            // 设置参数列表
             setArguments(args);
             String targetServiceName = buildKey((String) getAttachment(PATH_KEY),
                     getAttachment(GROUP_KEY),

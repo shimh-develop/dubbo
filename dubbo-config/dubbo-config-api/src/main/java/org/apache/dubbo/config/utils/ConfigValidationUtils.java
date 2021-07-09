@@ -181,27 +181,39 @@ public class ConfigValidationUtils {
         List<RegistryConfig> registries = interfaceConfig.getRegistries();
         if (CollectionUtils.isNotEmpty(registries)) {
             for (RegistryConfig config : registries) {
+                //s  <dubbo:registry id="registry1" address="zookeeper://127.0.0.1:2181"/>
                 String address = config.getAddress();
                 if (StringUtils.isEmpty(address)) {
+                    //s 默认 0.0.0.0
                     address = ANYHOST_VALUE;
                 }
                 if (!RegistryConfig.NO_AVAILABLE.equalsIgnoreCase(address)) {
                     Map<String, String> map = new HashMap<String, String>();
+                    //s 将 ApplicationConfig的属性添加到map 特殊处理@Parameter
                     AbstractConfig.appendParameters(map, application);
+                    //s 添加 RegistryConfig 字段信息到 map 中
                     AbstractConfig.appendParameters(map, config);
+                    //s 添加 path、pid，protocol 等信息到 map 中
                     map.put(PATH_KEY, RegistryService.class.getName());
                     AbstractInterfaceConfig.appendRuntimeParameters(map);
                     if (!map.containsKey(PROTOCOL_KEY)) {
+                        //s 默认dubbo协议
                         map.put(PROTOCOL_KEY, DUBBO_PROTOCOL);
                     }
+                    //s 解析得到 URL 列表，address 可能包含多个注册中心 ip，
+                    //s 因此解析得到的是一个 URL 列表
                     List<URL> urls = UrlUtils.parseURLs(address, map);
 
                     for (URL url : urls) {
 
                         url = URLBuilder.from(url)
                                 .addParameter(REGISTRY_KEY, url.getProtocol())
+                                //s 根据URL的参数中registry-type的值 将 URL 协议头设置为 registry 或 service-discovery-registry
                                 .setProtocol(extractRegistryType(url))
                                 .build();
+                        //s 通过判断条件，决定是否添加 url 到 registryList 中，条件如下：
+                        //s (服务提供者 && register = true 或 null)
+                        //s    || (非服务提供者 && subscribe = true 或 null)
                         if ((provider && url.getParameter(REGISTER_KEY, true))
                                 || (!provider && url.getParameter(SUBSCRIBE_KEY, true))) {
                             registryList.add(url);

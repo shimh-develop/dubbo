@@ -122,12 +122,19 @@ public class ServiceClassPostProcessor implements BeanDefinitionRegistryPostProc
         this.packagesToScan = packagesToScan;
     }
 
+    /**
+     * 所有Bean注册之后回调该方法
+     * @param registry
+     * @throws BeansException
+     */
     @Override
     public void postProcessBeanDefinitionRegistry(BeanDefinitionRegistry registry) throws BeansException {
 
         // @since 2.7.5
+        //s DubboBootstrap 启动
         registerInfrastructureBean(registry, DubboBootstrapApplicationListener.BEAN_NAME, DubboBootstrapApplicationListener.class);
 
+        //s 处理路径的占位符${}
         Set<String> resolvedPackagesToScan = resolvePackagesToScan(packagesToScan);
 
         if (!CollectionUtils.isEmpty(resolvedPackagesToScan)) {
@@ -163,15 +170,18 @@ public class ServiceClassPostProcessor implements BeanDefinitionRegistryPostProc
         for (String packageToScan : packagesToScan) {
 
             // Registers @Service Bean first
+            //s 将 @Service @DubboService 注解的类 注册为Spring Bean
             scanner.scan(packageToScan);
 
             // Finds all BeanDefinitionHolders of @Service whether @ComponentScan scans or not.
+            //s 获取 @Service 的BeanDefinitionHolder
             Set<BeanDefinitionHolder> beanDefinitionHolders =
                     findServiceBeanDefinitionHolders(scanner, packageToScan, registry, beanNameGenerator);
 
             if (!CollectionUtils.isEmpty(beanDefinitionHolders)) {
 
                 for (BeanDefinitionHolder beanDefinitionHolder : beanDefinitionHolders) {
+                    //s 注册 ServiceBean 即ServiceConfig【一个@Service的类生成一个ServiceBean】
                     registerServiceBean(beanDefinitionHolder, registry, scanner);
                 }
 
@@ -275,9 +285,10 @@ public class ServiceClassPostProcessor implements BeanDefinitionRegistryPostProc
      */
     private void registerServiceBean(BeanDefinitionHolder beanDefinitionHolder, BeanDefinitionRegistry registry,
                                      DubboClassPathBeanDefinitionScanner scanner) {
-
+        //s 被@Service标注的类
         Class<?> beanClass = resolveClass(beanDefinitionHolder);
 
+        //s 获取标注的注解
         Annotation service = findServiceAnnotation(beanClass);
 
         /**
@@ -285,14 +296,18 @@ public class ServiceClassPostProcessor implements BeanDefinitionRegistryPostProc
          */
         AnnotationAttributes serviceAnnotationAttributes = getAnnotationAttributes(service, false, false);
 
+        //s 接口Class
         Class<?> interfaceClass = resolveServiceInterfaceClass(serviceAnnotationAttributes, beanClass);
 
         String annotatedServiceBeanName = beanDefinitionHolder.getBeanName();
 
+        //s 注册ServiceBean 设置属性
         AbstractBeanDefinition serviceBeanDefinition =
                 buildServiceBeanDefinition(service, serviceAnnotationAttributes, interfaceClass, annotatedServiceBeanName);
 
         // ServiceBean Bean name
+        //s 生成Bean name ServiceBean:interfaceClassName:version:group
+        //s 接口、分组、版本唯一确定一个服务
         String beanName = generateServiceBeanName(serviceAnnotationAttributes, interfaceClass);
 
         if (scanner.checkCandidate(beanName, serviceBeanDefinition)) { // check duplicated candidate bean
@@ -393,17 +408,19 @@ public class ServiceClassPostProcessor implements BeanDefinitionRegistryPostProc
         AbstractBeanDefinition beanDefinition = builder.getBeanDefinition();
 
         MutablePropertyValues propertyValues = beanDefinition.getPropertyValues();
-
+        //s 特殊属性下面处理
         String[] ignoreAttributeNames = of("provider", "monitor", "application", "module", "registry", "protocol",
                 "interface", "interfaceName", "parameters");
-
+        //s 属性填充 version group token 等待
         propertyValues.addPropertyValues(new AnnotationPropertyValuesAdapter(serviceAnnotation, environment, ignoreAttributeNames));
 
         // References "ref" property to annotated-@Service Bean
+        //s 引用 @DubboService标注的类在Spring容器中的Bean name
         addPropertyReference(builder, "ref", annotatedServiceBeanName);
         // Set interface
         builder.addPropertyValue("interface", interfaceClass.getName());
         // Convert parameters into map
+        //s 示例：@DubboService(parameters={key1, value1, key2, value2})
         builder.addPropertyValue("parameters", convertParameters(serviceAnnotationAttributes.getStringArray("parameters")));
         // Add methods parameters
         List<MethodConfig> methodConfigs = convertMethodConfigs(serviceAnnotationAttributes.get("methods"));
@@ -411,6 +428,7 @@ public class ServiceClassPostProcessor implements BeanDefinitionRegistryPostProc
             builder.addPropertyValue("methods", methodConfigs);
         }
 
+        //s 根据属性配置的Config类 注入到ServiceBean中
         /**
          * Add {@link org.apache.dubbo.config.ProviderConfig} Bean reference
          */
@@ -447,6 +465,7 @@ public class ServiceClassPostProcessor implements BeanDefinitionRegistryPostProc
         /**
          * Add {@link org.apache.dubbo.config.RegistryConfig} Bean reference
          */
+        //s 可以注册到多个注册中心
         String[] registryConfigBeanNames = serviceAnnotationAttributes.getStringArray("registry");
 
         List<RuntimeBeanReference> registryRuntimeBeanReferences = toRuntimeBeanReferences(registryConfigBeanNames);
@@ -458,6 +477,7 @@ public class ServiceClassPostProcessor implements BeanDefinitionRegistryPostProc
         /**
          * Add {@link org.apache.dubbo.config.ProtocolConfig} Bean reference
          */
+        //s 多个协议
         String[] protocolConfigBeanNames = serviceAnnotationAttributes.getStringArray("protocol");
 
         List<RuntimeBeanReference> protocolRuntimeBeanReferences = toRuntimeBeanReferences(protocolConfigBeanNames);
@@ -505,7 +525,7 @@ public class ServiceClassPostProcessor implements BeanDefinitionRegistryPostProc
         if (ArrayUtils.isEmpty(parameters)) {
             return null;
         }
-
+        //s 示例：@DubboService(parameters={key1, value1, key2, value2})
         if (parameters.length % 2 != 0) {
             throw new IllegalArgumentException("parameter attribute must be paired with key followed by value");
         }

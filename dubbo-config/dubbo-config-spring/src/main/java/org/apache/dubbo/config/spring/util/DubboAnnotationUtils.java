@@ -67,10 +67,16 @@ public class DubboAnnotationUtils {
      * @throws IllegalStateException if interface name was not found
      */
     public static String resolveInterfaceName(AnnotationAttributes attributes, Class<?> defaultInterfaceClass) {
+        //s 泛化调用 https://dubbo.apache.org/zh/docs/v2.7/user/examples/generic-reference/
+        /**
+         * 泛化接口调用方式主要用于客户端没有 API 接口及模型类元的情况，参数及返回值中的所有 POJO 均用 Map 表示，
+         * 通常用于框架集成，比如：实现一个通用的服务测试框架，可通过 GenericService 调用所有服务实现
+         */
         Boolean generic = getAttribute(attributes, "generic");
         if (generic != null && generic) {
             // it's a generic reference
             String interfaceClassName = getAttribute(attributes, "interfaceName");
+            //s 必须提供接口名
             Assert.hasText(interfaceClassName,
                     "@Reference interfaceName() must be present when reference a generic service!");
             return interfaceClassName;
@@ -92,6 +98,7 @@ public class DubboAnnotationUtils {
 
         ClassLoader classLoader = defaultInterfaceClass != null ? defaultInterfaceClass.getClassLoader() : Thread.currentThread().getContextClassLoader();
 
+        //s @DubboService(interfaceClass = "", interfaceName = "")
         Class<?> interfaceClass = getAttribute(attributes, "interfaceClass");
 
         if (void.class.equals(interfaceClass)) { // default or set void.class for purpose.
@@ -111,9 +118,11 @@ public class DubboAnnotationUtils {
         if (interfaceClass == null && defaultInterfaceClass != null) {
             // Find all interfaces from the annotated class
             // To resolve an issue : https://github.com/apache/dubbo/issues/3251
+            //s 获取所有父接口
             Class<?>[] allInterfaces = getAllInterfacesForClass(defaultInterfaceClass);
 
             if (allInterfaces.length > 0) {
+                //s 取第一个
                 interfaceClass = allInterfaces[0];
             }
 

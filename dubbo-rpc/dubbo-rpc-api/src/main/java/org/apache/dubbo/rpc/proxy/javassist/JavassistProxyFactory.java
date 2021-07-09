@@ -32,12 +32,44 @@ public class JavassistProxyFactory extends AbstractProxyFactory {
     @Override
     @SuppressWarnings("unchecked")
     public <T> T getProxy(Invoker<T> invoker, Class<?>[] interfaces) {
+        /**
+         * 消费端生成代理
+         *
+         * package org.apache.dubbo.common.bytecode;
+         *
+         * public class proxy0 implements org.apache.dubbo.demo.DemoService {
+         *
+         *     public static java.lang.reflect.Method[] methods;
+         *
+         *     private java.lang.reflect.InvocationHandler handler;
+         *
+         *     public proxy0() {
+         *     }
+         *
+         *     public proxy0(java.lang.reflect.InvocationHandler arg0) {
+         *         handler = $1;
+         *     }
+         *
+         *     public java.lang.String sayHello(java.lang.String arg0) {
+         *         Object[] args = new Object[1];
+         *         args[0] = ($w) $1;
+         *         Object ret = handler.invoke(this, methods[0], args);
+         *         return (java.lang.String) ret;
+         *     }
+         * }
+         *
+         * 实际就是调用
+         * @see InvokerInvocationHandler#invoke(java.lang.Object, java.lang.reflect.Method, java.lang.Object[])
+         * 包装好参数就调用invoker
+         */
         return (T) Proxy.getProxy(interfaces).newInstance(new InvokerInvocationHandler(invoker));
     }
 
     @Override
     public <T> Invoker<T> getInvoker(T proxy, Class<T> type, URL url) {
+        //s 服务端生成代理
         // TODO Wrapper cannot handle this scenario correctly: the classname contains '$'
+        //s 通过 Javassist 生成 Class 对象，最后再通过反射创建 Wrapper 实例
         final Wrapper wrapper = Wrapper.getWrapper(proxy.getClass().getName().indexOf('$') < 0 ? proxy.getClass() : type);
         return new AbstractProxyInvoker<T>(proxy, type, url) {
             @Override

@@ -74,7 +74,7 @@ public abstract class AnnotatedInterfaceConfigBeanBuilder<C extends AbstractInte
     public final C build() throws Exception {
 
         checkDependencies();
-
+        //s 子类实现
         C configBean = doBuild();
 
         configureBean(configBean);
@@ -101,8 +101,10 @@ public abstract class AnnotatedInterfaceConfigBeanBuilder<C extends AbstractInte
 
     protected void configureBean(C configBean) throws Exception {
 
+        //s 填充属性 注解的属性设置到同名称的configBean中
         preConfigureBean(attributes, configBean);
 
+        //s Spring容器获取 RegistryConfig
         configureRegistryConfigs(configBean);
 
         configureMonitorConfig(configBean);
@@ -120,8 +122,9 @@ public abstract class AnnotatedInterfaceConfigBeanBuilder<C extends AbstractInte
 
     private void configureRegistryConfigs(C configBean) {
 
+        //s 多个注册中心
         String[] registryConfigBeanIds = resolveRegistryConfigBeanNames(attributes);
-
+        //s 从Spring容器中获取
         List<RegistryConfig> registryConfigs = getBeans(applicationContext, registryConfigBeanIds, RegistryConfig.class);
 
         configBean.setRegistries(registryConfigs);

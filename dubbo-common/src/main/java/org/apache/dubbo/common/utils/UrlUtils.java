@@ -69,9 +69,12 @@ public class UrlUtils {
             return null;
         }
         String url;
+        //s <dubbo:registry id="registry1" address="zookeeper://127.0.0.1:2181"/>
+        //s <dubbo:registry address="10.20.153.10:9090?register=false" />
         if (address.contains("://") || address.contains(URL_PARAM_STARTING_SYMBOL)) {
             url = address;
         } else {
+            //s 同一集群内的多个地址用逗号分隔，如：ip:port,ip:port，不同集群的注册中心，请配置多个<dubbo:registry>标签
             String[] addresses = COMMA_SPLIT_PATTERN.split(address);
             url = addresses[0];
             if (addresses.length > 1) {
@@ -87,6 +90,7 @@ public class UrlUtils {
         }
         String defaultProtocol = defaults == null ? null : defaults.get(PROTOCOL_KEY);
         if (defaultProtocol == null || defaultProtocol.length() == 0) {
+            //s 默认 dubbo 协议
             defaultProtocol = DUBBO_PROTOCOL;
         }
         String defaultUsername = defaults == null ? null : defaults.get(USERNAME_KEY);
@@ -110,6 +114,7 @@ public class UrlUtils {
         String host = u.getHost();
         int port = u.getPort();
         String path = u.getPath();
+        //s 添加默认值
         Map<String, String> parameters = new HashMap<>(u.getParameters());
         if (protocol == null || protocol.length() == 0) {
             changed = true;
@@ -165,12 +170,20 @@ public class UrlUtils {
         if (address == null || address.length() == 0) {
             return null;
         }
+        /**
+         * s
+         * 多注册中心配置，竖号分隔表示同时连接多个不同注册中心，同一注册中心的多个集群地址用逗号分隔
+         * <dubbo:registry address="10.20.141.150:9090|10.20.154.177:9010" />
+         *
+         * https://dubbo.apache.org/zh/docs/v2.7/user/examples/multi-registry/
+         */
         String[] addresses = REGISTRY_SPLIT_PATTERN.split(address);
         if (addresses == null || addresses.length == 0) {
             return null; //here won't be empty
         }
         List<URL> registries = new ArrayList<URL>();
         for (String addr : addresses) {
+            //s 生成URL
             registries.add(parseURL(addr, defaults));
         }
         return registries;

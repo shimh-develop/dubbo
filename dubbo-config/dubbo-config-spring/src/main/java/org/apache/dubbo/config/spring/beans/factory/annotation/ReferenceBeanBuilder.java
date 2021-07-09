@@ -154,13 +154,13 @@ class ReferenceBeanBuilder extends AnnotatedInterfaceConfigBeanBuilder<Reference
     protected void postConfigureBean(AnnotationAttributes attributes, ReferenceBean bean) throws Exception {
 
         bean.setApplicationContext(applicationContext);
-
+        //s 设置服务方的接口 泛化调用特殊处理
         configureInterface(attributes, bean);
-
+        //s 设置引用的Spring容器中的 ConsumerConfig
         configureConsumerConfig(attributes, bean);
-
+        //s 方法参数
         configureMethodConfig(attributes, bean);
-
+        //s 初始化
         bean.afterPropertiesSet();
 
     }

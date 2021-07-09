@@ -68,8 +68,11 @@ public class DubboCodec extends ExchangeCodec {
     protected Object decodeBody(Channel channel, InputStream is, byte[] header) throws IOException {
         byte flag = header[2], proto = (byte) (flag & SERIALIZATION_MASK);
         // get request id.
+        // 获取调用编号
         long id = Bytes.bytes2long(header, 4);
+        // 通过逻辑与运算得到调用类型，0 - Response，1 - Request
         if ((flag & FLAG_REQUEST) == 0) {
+            // 对响应结果进行解码，得到 Response 对象
             // decode response.
             Response res = new Response(id);
             if ((flag & FLAG_EVENT) != 0) {
@@ -118,6 +121,7 @@ public class DubboCodec extends ExchangeCodec {
             return res;
         } else {
             // decode request.
+            // 创建 Request 对象
             Request req = new Request(id);
             req.setVersion(Version.getProtocolVersion());
             req.setTwoWay((flag & FLAG_TWOWAY) != 0);
@@ -136,11 +140,15 @@ public class DubboCodec extends ExchangeCodec {
                         data = decodeEventData(channel, in, eventPayload);
                     }
                 } else {
+                    //s 请求
                     DecodeableRpcInvocation inv;
                     if (channel.getUrl().getParameter(DECODE_IN_IO_THREAD_KEY, DEFAULT_DECODE_IN_IO_THREAD)) {
                         inv = new DecodeableRpcInvocation(channel, req, is, proto);
+                        // 在当前线程，也就是 IO 线程上进行后续的解码工作。此工作完成后，可将
+                        // 调用方法名、attachment、以及调用参数解析出来
                         inv.decode();
                     } else {
+                        // 仅创建 DecodeableRpcInvocation 对象，但不在当前线程上执行解码逻辑
                         inv = new DecodeableRpcInvocation(channel, req,
                                 new UnsafeByteArrayInputStream(readMessageData(is)), proto);
                     }
@@ -182,7 +190,7 @@ public class DubboCodec extends ExchangeCodec {
     @Override
     protected void encodeRequestData(Channel channel, ObjectOutput out, Object data, String version) throws IOException {
         RpcInvocation inv = (RpcInvocation) data;
-
+        // 依次序列化 dubbo version、path、version
         out.writeUTF(version);
         // https://github.com/apache/dubbo/issues/6138
         String serviceName = inv.getAttachment(INTERFACE_KEY);
@@ -191,15 +199,18 @@ public class DubboCodec extends ExchangeCodec {
         }
         out.writeUTF(serviceName);
         out.writeUTF(inv.getAttachment(VERSION_KEY));
-
+        // 序列化调用方法名
         out.writeUTF(inv.getMethodName());
+        // 将参数类型转换为字符串，并进行序列化
         out.writeUTF(inv.getParameterTypesDesc());
         Object[] args = inv.getArguments();
         if (args != null) {
             for (int i = 0; i < args.length; i++) {
+                // 对运行时参数进行序列化
                 out.writeObject(encodeInvocationArgument(channel, inv, i));
             }
         }
+        // 序列化 attachments
         out.writeAttachments(inv.getObjectAttachments());
     }
 

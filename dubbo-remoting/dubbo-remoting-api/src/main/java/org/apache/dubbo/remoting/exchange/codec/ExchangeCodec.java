@@ -68,8 +68,10 @@ public class ExchangeCodec extends TelnetCodec {
     @Override
     public void encode(Channel channel, ChannelBuffer buffer, Object msg) throws IOException {
         if (msg instanceof Request) {
+            // 对 Request 对象进行编码
             encodeRequest(channel, buffer, (Request) msg);
         } else if (msg instanceof Response) {
+            // 对 Response 对象进行编码
             encodeResponse(channel, buffer, (Response) msg);
         } else {
             super.encode(channel, buffer, msg);
@@ -218,36 +220,45 @@ public class ExchangeCodec extends TelnetCodec {
     protected void encodeRequest(Channel channel, ChannelBuffer buffer, Request req) throws IOException {
         Serialization serialization = getSerialization(channel, req);
         // header.
+        // 创建消息头字节数组，长度为 16
         byte[] header = new byte[HEADER_LENGTH];
         // set magic number.
+        // 设置魔数
         Bytes.short2bytes(MAGIC, header);
 
         // set request and serialization flag.
+        // 设置数据包类型（Request/Response）和序列化器编号
         header[2] = (byte) (FLAG_REQUEST | serialization.getContentTypeId());
-
+        // 设置通信方式(单向/双向)
         if (req.isTwoWay()) {
             header[2] |= FLAG_TWOWAY;
         }
+        // 设置事件标识
         if (req.isEvent()) {
             header[2] |= FLAG_EVENT;
         }
 
         // set request id.
+        // 设置请求编号，8个字节，从第4个字节开始设置
         Bytes.long2bytes(req.getId(), header, 4);
 
         // encode request data.
         int savedWriteIndex = buffer.writerIndex();
+        // 更新 writerIndex，为消息头预留 16 个字节的空间
         buffer.writerIndex(savedWriteIndex + HEADER_LENGTH);
+
         ChannelBufferOutputStream bos = new ChannelBufferOutputStream(buffer);
 
         if (req.isHeartbeat()) {
             // heartbeat request data is always null
             bos.write(CodecSupport.getNullBytesOf(serialization));
         } else {
+            // 创建序列化器，比如 Hessian2ObjectOutput
             ObjectOutput out = serialization.serialize(channel.getUrl(), bos);
             if (req.isEvent()) {
                 encodeEventData(channel, out, req.getData());
             } else {
+                // 对请求数据进行序列化操作
                 encodeRequestData(channel, out, req.getData(), req.getVersion());
             }
             out.flushBuffer();
@@ -273,6 +284,7 @@ public class ExchangeCodec extends TelnetCodec {
         try {
             Serialization serialization = getSerialization(channel, res);
             // header.
+            // 创建消息头字节数组
             byte[] header = new byte[HEADER_LENGTH];
             // set magic number.
             Bytes.short2bytes(MAGIC, header);
@@ -300,6 +312,7 @@ public class ExchangeCodec extends TelnetCodec {
                     if (res.isEvent()) {
                         encodeEventData(channel, out, res.getResult());
                     } else {
+                        // 对调用结果进行序列化
                         encodeResponseData(channel, out, res.getResult(), res.getVersion());
                     }
                     out.flushBuffer();
@@ -308,6 +321,7 @@ public class ExchangeCodec extends TelnetCodec {
                     }
                 }
             } else {
+                // 对错误信息进行序列化
                 ObjectOutput out = serialization.serialize(channel.getUrl(), bos);
                 out.writeUTF(res.getErrorMessage());
                 out.flushBuffer();

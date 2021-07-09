@@ -117,6 +117,7 @@ public class DubboProtocol extends AbstractProtocol {
             }
 
             Invocation inv = (Invocation) message;
+            // 获取 Invoker 实例
             Invoker<?> invoker = getInvoker(channel, inv);
             // need to consider backward-compatibility if it's a callback
             if (Boolean.TRUE.toString().equals(inv.getObjectAttachments().get(IS_CALLBACK_SERVICE_INVOKE))) {
@@ -142,6 +143,7 @@ public class DubboProtocol extends AbstractProtocol {
                 }
             }
             RpcContext.getContext().setRemoteAddress(channel.getRemoteAddress());
+            // 通过 Invoker 调用具体的服务
             Result result = invoker.invoke(inv);
             return result.thenApply(Function.identity());
         }
@@ -280,14 +282,19 @@ public class DubboProtocol extends AbstractProtocol {
 
     @Override
     public <T> Exporter<T> export(Invoker<T> invoker) throws RpcException {
+        //s 服务暴露的URL
         URL url = invoker.getUrl();
 
         // export service.
+        //s 获取服务标识，理解成服务坐标也行。由服务组名，服务名，服务版本号以及端口组成。比如：
+        //s demoGroup/com.alibaba.dubbo.demo.DemoService:1.0.1:20880
         String key = serviceKey(url);
+        //s 创建 DubboExporter
         DubboExporter<T> exporter = new DubboExporter<T>(invoker, key, exporterMap);
         exporterMap.put(key, exporter);
 
         //export an stub service for dispatching event
+        //s https://dubbo.apache.org/zh/docs/v2.7/user/examples/local-stub/
         Boolean isStubSupportEvent = url.getParameter(STUB_EVENT_KEY, DEFAULT_STUB_EVENT);
         Boolean isCallbackservice = url.getParameter(IS_CALLBACK_SERVICE, false);
         if (isStubSupportEvent && !isCallbackservice) {
@@ -300,8 +307,9 @@ public class DubboProtocol extends AbstractProtocol {
 
             }
         }
-
+        //s 服务初次暴露 启动服务器
         openServer(url);
+        //s 优化序列化
         optimizeSerialization(url);
 
         return exporter;
@@ -309,6 +317,7 @@ public class DubboProtocol extends AbstractProtocol {
 
     private void openServer(URL url) {
         // find server.
+        //s 获取 host:port，并将其作为服务器实例的 key，用于标识当前的服务器实例
         String key = url.getAddress();
         //client can export a service which's only for server to invoke
         boolean isServer = url.getParameter(IS_SERVER_KEY, true);
@@ -318,11 +327,13 @@ public class DubboProtocol extends AbstractProtocol {
                 synchronized (this) {
                     server = serverMap.get(key);
                     if (server == null) {
+                        //s 在同一台机器上（单网卡），同一个端口上仅允许启动一个服务器实例
                         serverMap.put(key, createServer(url));
                     }
                 }
             } else {
                 // server supports reset, use together with override
+                //s 服务器已创建，则根据 url 中的配置重置服务器
                 server.reset(url);
             }
         }
@@ -333,24 +344,29 @@ public class DubboProtocol extends AbstractProtocol {
                 // send readonly event when server closes, it's enabled by default
                 .addParameterIfAbsent(CHANNEL_READONLYEVENT_SENT_KEY, Boolean.TRUE.toString())
                 // enable heartbeat by default
+                //s  添加心跳检测配置到 url 中
                 .addParameterIfAbsent(HEARTBEAT_KEY, String.valueOf(DEFAULT_HEARTBEAT))
+                //s 添加编码解码器参数
                 .addParameter(CODEC_KEY, DubboCodec.NAME)
                 .build();
+        //s 获取 server 参数，默认为 netty 协议的服务器端实现类型，比如：dubbo协议的mina,netty等，http协议的jetty,servlet等
         String str = url.getParameter(SERVER_KEY, DEFAULT_REMOTING_SERVER);
-
+        //s 通过 SPI 检测是否存在 server 参数所代表的 Transporter 拓展，不存在则抛出异常
         if (str != null && str.length() > 0 && !ExtensionLoader.getExtensionLoader(Transporter.class).hasExtension(str)) {
             throw new RpcException("Unsupported server type: " + str + ", url: " + url);
         }
 
         ExchangeServer server;
         try {
+            //s 创建 ExchangeServer
             server = Exchangers.bind(url, requestHandler);
         } catch (RemotingException e) {
             throw new RpcException("Fail to start server(url: " + url + ") " + e.getMessage(), e);
         }
-
+        //s 协议的客户端实现类型，比如：dubbo协议的mina,netty等
         str = url.getParameter(CLIENT_KEY);
         if (str != null && str.length() > 0) {
+            //s 获取所有的 Transporter 实现类名称集合，比如 supportedTypes = [netty, mina]
             Set<String> supportedTypes = ExtensionLoader.getExtensionLoader(Transporter.class).getSupportedExtensions();
             if (!supportedTypes.contains(str)) {
                 throw new RpcException("Unsupported client type: " + str);
@@ -401,7 +417,7 @@ public class DubboProtocol extends AbstractProtocol {
     public <T> Invoker<T> protocolBindingRefer(Class<T> serviceType, URL url) throws RpcException {
         optimizeSerialization(url);
 
-        // create rpc invoker.
+        // create rpc invoker. 创建 DubboInvoker
         DubboInvoker<T> invoker = new DubboInvoker<T>(serviceType, url, getClients(url), invokers);
         invokers.add(invoker);
 
@@ -410,9 +426,9 @@ public class DubboProtocol extends AbstractProtocol {
 
     private ExchangeClient[] getClients(URL url) {
         // whether to share connection
-
+        //s 是否共享连接
         boolean useShareConnect = false;
-
+        //s 获取连接数，默认为0，表示未配置
         int connections = url.getParameter(CONNECTIONS_KEY, 0);
         List<ReferenceCountExchangeClient> shareClients = null;
         // if not configured, connection is shared, otherwise, one connection for one service
@@ -572,7 +588,7 @@ public class DubboProtocol extends AbstractProtocol {
      */
     private ExchangeClient initClient(URL url) {
 
-        // client type setting.
+        // client type setting. 默认netty
         String str = url.getParameter(CLIENT_KEY, url.getParameter(SERVER_KEY, DEFAULT_REMOTING_CLIENT));
 
         url = url.addParameter(CODEC_KEY, DubboCodec.NAME);
@@ -580,6 +596,7 @@ public class DubboProtocol extends AbstractProtocol {
         url = url.addParameterIfAbsent(HEARTBEAT_KEY, String.valueOf(DEFAULT_HEARTBEAT));
 
         // BIO is not allowed since it has severe performance issue.
+        //s 检测客户端类型是否存在，不存在则抛出异常
         if (str != null && str.length() > 0 && !ExtensionLoader.getExtensionLoader(Transporter.class).hasExtension(str)) {
             throw new RpcException("Unsupported client type: " + str + "," +
                     " supported client type is " + StringUtils.join(ExtensionLoader.getExtensionLoader(Transporter.class).getSupportedExtensions(), " "));

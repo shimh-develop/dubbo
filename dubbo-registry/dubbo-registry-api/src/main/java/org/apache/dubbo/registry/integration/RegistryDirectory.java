@@ -166,6 +166,7 @@ public class RegistryDirectory<T> extends DynamicDirectory<T> implements NotifyL
                 providerURLs = addressListener.notify(providerURLs, getConsumerUrl(),this);
             }
         }
+        //s 构建真实的DubboInvoker
         refreshOverrideAndInvoker(providerURLs);
     }
 
@@ -223,6 +224,7 @@ public class RegistryDirectory<T> extends DynamicDirectory<T> implements NotifyL
             if (invokerUrls.isEmpty()) {
                 return;
             }
+            //s 构建真实的Invoker
             Map<URL, Invoker<T>> newUrlInvokerMap = toInvokers(invokerUrls);// Translate url list to Invoker map
 
             /**

@@ -124,21 +124,27 @@ public class ReferenceAnnotationBeanPostProcessor extends AbstractAnnotationBean
         /**
          * The name of bean that annotated Dubbo's {@link Service @Service} in local Spring {@link ApplicationContext}
          */
+        //s 接口类名+group+version 示例：ServiceBean:接口类名:group:version
         String referencedBeanName = buildReferencedBeanName(attributes, injectedType);
 
         /**
          * The name of bean that is declared by {@link Reference @Reference} annotation injection
          */
+        //s @Reference的id 没有的话属性 key value 拼接的字符串 referenceBeanName主要用来作为缓存的key来获取对应的ReferenceBean
         String referenceBeanName = getReferenceBeanName(attributes, injectedType);
 
+        //s 生成ReferenceBean 并设置 ApplicationConfig、RegistryConfig、提取注解配置等
         ReferenceBean referenceBean = buildReferenceBeanIfAbsent(referenceBeanName, attributes, injectedType);
 
+        //s 本地调用使用了 injvm 协议，是一个伪协议，它不开启端口，不发起远程调用，只在 JVM 内直接关联，但执行 Dubbo 的 Filter 链
+        //s https://dubbo.apache.org/zh/docs/v2.7/user/examples/local-call/
         boolean localServiceBean = isLocalServiceBean(referencedBeanName, referenceBean, attributes);
 
+        //s 如果是本地Bean的话 让该Bean暴露服务
         prepareReferenceBean(referencedBeanName, referenceBean, localServiceBean);
-
+        //s 引用的是本地bean的话 使用别名与本地bean关联，否则注册reference bean
         registerReferenceBean(referencedBeanName, referenceBean, attributes, localServiceBean, injectedType);
-
+        //s 缓存
         cacheInjectedReferenceBean(referenceBean, injectedElement);
 
         return referenceBean.get();
@@ -160,6 +166,7 @@ public class ReferenceAnnotationBeanPostProcessor extends AbstractAnnotationBean
 
         ConfigurableListableBeanFactory beanFactory = getBeanFactory();
 
+        //s reference bean的名称
         String beanName = getReferenceBeanName(attributes, interfaceClass);
 
         if (localServiceBean) {  // If @Service bean is local one
@@ -170,11 +177,14 @@ public class ReferenceAnnotationBeanPostProcessor extends AbstractAnnotationBean
             AbstractBeanDefinition beanDefinition = (AbstractBeanDefinition) beanFactory.getBeanDefinition(referencedBeanName);
             RuntimeBeanReference runtimeBeanReference = (RuntimeBeanReference) beanDefinition.getPropertyValues().get("ref");
             // The name of bean annotated @Service
+            //s 本地标注了 @Service的 Bean name
             String serviceBeanName = runtimeBeanReference.getBeanName();
             // register Alias rather than a new bean name, in order to reduce duplicated beans
+            //s 注册别名
             beanFactory.registerAlias(serviceBeanName, beanName);
         } else { // Remote @Service Bean
             if (!beanFactory.containsBean(beanName)) {
+                //s 注册reference bean
                 beanFactory.registerSingleton(beanName, referenceBean);
             }
         }
@@ -234,6 +244,7 @@ public class ReferenceAnnotationBeanPostProcessor extends AbstractAnnotationBean
      * @since 2.7.6
      */
     private boolean isLocalServiceBean(String referencedBeanName, ReferenceBean referenceBean, AnnotationAttributes attributes) {
+        //s 本地存在Bean 并且 injvm 不为false
         return existsServiceBean(referencedBeanName) && !isRemoteReferenceBean(referenceBean, attributes);
     }
 
@@ -307,13 +318,14 @@ public class ReferenceAnnotationBeanPostProcessor extends AbstractAnnotationBean
     private ReferenceBean buildReferenceBeanIfAbsent(String referenceBeanName, AnnotationAttributes attributes,
                                                      Class<?> referencedType)
             throws Exception {
-
+        //s 缓存
         ReferenceBean<?> referenceBean = referenceBeanCache.get(referenceBeanName);
 
         if (referenceBean == null) {
             ReferenceBeanBuilder beanBuilder = ReferenceBeanBuilder
                     .create(attributes, applicationContext)
                     .interfaceClass(referencedType);
+            //s 创建ReferenceBean
             referenceBean = beanBuilder.build();
             referenceBeanCache.put(referenceBeanName, referenceBean);
         } else if (!referencedType.isAssignableFrom(referenceBean.getInterfaceClass())) {

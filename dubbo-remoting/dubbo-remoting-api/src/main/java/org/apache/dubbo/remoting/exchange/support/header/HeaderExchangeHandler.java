@@ -79,7 +79,7 @@ public class HeaderExchangeHandler implements ChannelHandlerDelegate {
         Response res = new Response(req.getId(), req.getVersion());
         if (req.isBroken()) {
             Object data = req.getData();
-
+            // 检测请求是否合法，不合法则返回状态码为 BAD_REQUEST 的响应
             String msg;
             if (data == null) {
                 msg = null;
@@ -95,8 +95,10 @@ public class HeaderExchangeHandler implements ChannelHandlerDelegate {
             return;
         }
         // find handler by message class.
+        // 获取 data 字段值，也就是 RpcInvocation 对象
         Object msg = req.getData();
         try {
+            // 继续向下调用
             CompletionStage<Object> future = handler.reply(channel, msg);
             future.whenComplete((appResult, t) -> {
                 try {
@@ -113,6 +115,7 @@ public class HeaderExchangeHandler implements ChannelHandlerDelegate {
                 }
             });
         } catch (Throwable e) {
+            // 若调用过程出现异常，则设置 SERVICE_ERROR，表示服务端异常
             res.setStatus(Response.SERVICE_ERROR);
             res.setErrorMessage(StringUtils.toString(e));
             channel.send(res);
@@ -165,15 +168,20 @@ public class HeaderExchangeHandler implements ChannelHandlerDelegate {
     @Override
     public void received(Channel channel, Object message) throws RemotingException {
         final ExchangeChannel exchangeChannel = HeaderExchangeChannel.getOrAddChannel(channel);
+        // 处理请求对象
         if (message instanceof Request) {
             // handle request.
             Request request = (Request) message;
             if (request.isEvent()) {
+                // 处理事件
                 handlerEvent(channel, request);
             } else {
+                // 双向通信
                 if (request.isTwoWay()) {
+                    // 向后调用服务，并得到调用结果
                     handleRequest(exchangeChannel, request);
                 } else {
+                    // 如果是单向通信，仅向后调用指定服务即可，无需返回调用结果
                     handler.received(exchangeChannel, request.getData());
                 }
             }

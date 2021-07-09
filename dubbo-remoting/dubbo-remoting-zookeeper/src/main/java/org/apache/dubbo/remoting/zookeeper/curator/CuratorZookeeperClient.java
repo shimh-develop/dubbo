@@ -74,6 +74,7 @@ public class CuratorZookeeperClient extends AbstractZookeeperClient<CuratorZooke
             }
             client = builder.build();
             client.getConnectionStateListenable().addListener(new CuratorConnectionStateListener(url));
+            //s 启动客户端
             client.start();
             boolean connected = client.blockUntilConnected(timeout, TimeUnit.MILLISECONDS);
             if (!connected) {

@@ -36,6 +36,7 @@ public abstract class AbstractCompiler implements Compiler {
         Matcher matcher = PACKAGE_PATTERN.matcher(code);
         String pkg;
         if (matcher.find()) {
+            //s 包名
             pkg = matcher.group(1);
         } else {
             pkg = "";
@@ -43,18 +44,22 @@ public abstract class AbstractCompiler implements Compiler {
         matcher = CLASS_PATTERN.matcher(code);
         String cls;
         if (matcher.find()) {
+            //s 类名
             cls = matcher.group(1);
         } else {
             throw new IllegalArgumentException("No such class name in " + code);
         }
+        //s 获取全类名
         String className = pkg != null && pkg.length() > 0 ? pkg + "." + cls : cls;
         try {
+            //s 尝试类加载器加载
             return Class.forName(className, true, org.apache.dubbo.common.utils.ClassUtils.getCallerClassLoader(getClass()));
         } catch (ClassNotFoundException e) {
             if (!code.endsWith("}")) {
                 throw new IllegalStateException("The java code not endsWith \"}\", code: \n" + code + "\n");
             }
             try {
+                //s 字节码技术动态生成
                 return doCompile(className, code);
             } catch (RuntimeException t) {
                 throw t;

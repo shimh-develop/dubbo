@@ -224,7 +224,7 @@ public abstract class AbstractInterfaceConfig extends AbstractMethodConfig {
                             "<dubbo:service interface=\"" + interfaceClass.getName() + "\" ... >" +
                             "<dubbo:method name=\"\" ... /></<dubbo:reference>");
                 }
-
+                //s 接口是否有这个方法 没有报错
                 boolean hasMethod = Arrays.stream(interfaceClass.getMethods()).anyMatch(method -> method.getName().equals(methodName));
                 if (!hasMethod) {
                     throw new IllegalStateException("The interface " + interfaceClass.getName()
